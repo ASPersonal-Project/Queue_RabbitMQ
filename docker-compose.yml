@@ -1,26 +1,56 @@
+name: mern-stack-dev
+
 services:
   backend-dev:
     build:
-      context: .
-      dockerfile: backend/Dockerfile.backend
+      context: ./backend
+      dockerfile: Dockerfile.backend
       target: dev
+    restart: unless-stopped
     volumes:
       - ./backend:/app
+      - /app/node_modules
     ports:
       - "4000:4000"
     environment:
       - NODE_ENV=development
-      - MONGO_URI=mongodb://db:27017/mern-dev
+      - MONGO_URI=mongodb://mongo:27017/mern-dev
+      - REDIS_HOST=redis 
     depends_on:
-      - db
+      - mongo
+      - redis
+    networks:
+      - mern-network 
+  
+  email-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+      target: dev
+    command: node worker-runner.js
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - MONGO_URI=mongodb://mongo:27017/mern-dev
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+      - mongo
+    networks:
+      - mern-network
 
   frontend-dev:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile.frontend
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
       target: dev
+    restart: unless-stopped
     volumes:
       - ./frontend:/app
+      - /app/node_modules
     ports:
       - "3000:3000"
     environment:
@@ -28,39 +58,55 @@ services:
       - REACT_APP_API_URL=http://localhost:4000
     depends_on:
       - backend-dev
+    networks:
+      - mern-network 
 
-  backend-prod:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile.backend
-      target: prod
-    ports:
-      - "8080:4000"
-    environment:
-      - NODE_ENV=production
-      - MONGO_URI=mongodb://db:27017/mern-prod
-    depends_on:
-      - db
+#   backend-prod:
+#     build:
+#       context: .
+#       dockerfile: backend/Dockerfile.backend
+#       target: prod
+#     ports:
+#       - "8080:4000"
+#     environment:
+#       - NODE_ENV=production
+#       - MONGO_URI=mongodb://db:27017/mern-prod
+#     depends_on:
+#       - db
 
-  frontend-prod:
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile.frontend
-      target: prod
-    ports:
-      - "8000:80"
-    environment:
-      - NODE_ENV=production
-      - REACT_APP_API_URL=http://localhost:8080
-    depends_on:
-      - backend-prod
+#   frontend-prod:
+#     build:
+#       context: .
+#       dockerfile: frontend/Dockerfile.frontend
+#       target: prod
+#     ports:
+#       - "8000:80"
+#     environment:
+#       - NODE_ENV=production
+#       - REACT_APP_API_URL=http://localhost:8080
+#     depends_on:
+#       - backend-prod
 
-  db:
+  mongo:
     image: mongo:latest
     ports:
       - "27017:27017"
     volumes:
-      - mern_db:/data/db
+      - mongo_data:/data/db
+    networks:
+      - mern-network 
+  
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - mern-network 
 
 volumes:
-  mern_db:
+  mongo_data:
+
+networks:
+  mern-network:
+    driver: bridge
