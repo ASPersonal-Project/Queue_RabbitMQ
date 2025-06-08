@@ -29,9 +29,28 @@ async function startWorker() {
       const jobData = JSON.parse(msg.content.toString());
       console.log("[worker] received job:", jobData);
 
-      await  sendEmail(jobData)
+      const maxRetries = 3;
+      let attempts = 0;
 
-      channel.ack(msg);
+      async function trySendEmail() {
+        try {
+          await sendEmail(jobData);
+          channel.ack(msg); // success, acknowledge
+        } catch (err) {
+          attempts++;
+          console.error(`[worker] Email sending failed (attempt ${attempts}):`, err.message);
+
+          if (attempts < maxRetries) {
+            setTimeout(trySendEmail, 2000); // Retry after 2 seconds
+          } else {
+            console.error("[worker] Max retries reached. Discarding message.");
+            channel.ack(msg); // Acknowledge anyway to remove from queue
+            // Optionally: push to a dead-letter queue or log for inspection
+          }
+        }
+      }
+
+      trySendEmail();
     }
   })
 }
