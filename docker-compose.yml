@@ -9,19 +9,19 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend:/app
-      - /app/node_modules
+      - backend_node_modules:/app/node_modules
     ports:
       - "4000:4000"
     environment:
       - NODE_ENV=development
       - MONGO_URI=mongodb://mongo:27017/mern-dev
-      - REDIS_HOST=redis 
+      - RABBITMQ_HOST=amqp://rabbitmq
     depends_on:
       - mongo
-      - redis
+      - email-worker
     networks:
       - mern-network 
-  
+
   email-worker:
     build:
       context: ./backend
@@ -31,16 +31,16 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend:/app
-      - /app/node_modules
+      - backend_node_modules:/app/node_modules
     environment:
       - NODE_ENV=development
       - MONGO_URI=mongodb://mongo:27017/mern-dev
-      - REDIS_HOST=redis
+      - RABBITMQ_HOST=amqp://rabbitmq
     depends_on:
-      - redis
-      - mongo
+      - rabbitmq
     networks:
       - mern-network
+  
 
   frontend-dev:
     build:
@@ -95,17 +95,18 @@ services:
       - mongo_data:/data/db
     networks:
       - mern-network 
-  
-  redis:
-    image: redis:latest
+
+  rabbitmq:
+    image: rabbitmq:3-management
     ports:
-      - "6379:6379"
-    restart: unless-stopped
+      - "5672:5672"
+      - "15672:15672"
     networks:
-      - mern-network 
+      - mern-network
 
 volumes:
   mongo_data:
+  backend_node_modules:
 
 networks:
   mern-network:

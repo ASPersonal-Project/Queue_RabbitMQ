@@ -1,8 +1,8 @@
 const express = require("express");
 const { default: mongoose } = require("mongoose");
 const User = require("./src/user"); // Import the User model
+const publishEmailJob = require("./src/emailPublisher");
 
-const sendEmailJob = require("./src/emailJob");
 
 const app = express();
 const port = 4000;
@@ -19,7 +19,7 @@ app.get("/test", async(req, res) => {
 
 app.get("/", async(req, res) => {
   const users = await User.find();
-  sendEmailJob()
+  publishEmailJob() // Call the email job publisher
   res.send(users);
 });
 app.post("/", async (req, res) => {
