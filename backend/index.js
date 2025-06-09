@@ -1,7 +1,7 @@
 const express = require("express");
 const { default: mongoose } = require("mongoose");
 const User = require("./src/user"); // Import the User model
-const publishEmailJob = require("./src/emailPublisher");
+const publishJobs = require("./src/publisher");
 
 
 const app = express();
@@ -19,7 +19,9 @@ app.get("/test", async(req, res) => {
 
 app.get("/", async(req, res) => {
   const users = await User.find();
-  publishEmailJob() // Call the email job publisher
+  users.forEach(element => {
+    publishJobs(element.notificationType, element)
+  });
   res.send(users);
 });
 app.post("/", async (req, res) => {

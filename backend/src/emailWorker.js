@@ -1,7 +1,6 @@
-const amqp = require('amqplib');
+const connectRabbitMQ = require('./rabbitmq');
 const nodemailer = require('nodemailer');
 
-const QUEUE_NAME = 'emailQueue';
 
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
@@ -16,39 +15,41 @@ const transporter = nodemailer.createTransport({
 
 
 
-async function startWorker() {
-  const connection = await amqp.connect(process.env.RABBITMQ_URI || 'amqp://rabbitmq');
-  const channel = await connection.createChannel();
+async function startEmailWorker() {
+  const channel = await connectRabbitMQ();
+  const exchange = 'notification_exchange';
+  const queue = 'EMAIL_QUEUE';
 
-  await channel.assertQueue(QUEUE_NAME, { durable: true });
+  await channel.assertQueue(queue, { durable: true });
+  await channel.bindQueue(queue, exchange, 'email');
 
-  console.log("[worker] waiting for email jobs...")
+  console.log('[EmailWorker] Waiting for email jobs...');
 
-  channel.consume(QUEUE_NAME, async (msg) => {
-    if (msg != null){
-      const jobData = JSON.parse(msg.content.toString());
-      console.log("[worker] received job:", jobData);
+  channel.consume(queue, async (msg) => {
+    if (msg) {
+      const data = JSON.parse(msg.content.toString());
+      console.log('[EmailWorker] Received job:', data.name);
 
-      await  sendEmail(jobData)
+      // Simulate email sending
+      await sendEmail(data);
 
       channel.ack(msg);
     }
-  })
+  });
 }
-
 async function sendEmail(data) {
-  const {to, subject, text} = data;
-    console.log(`Processing job to send email to ${to}`);
+  const {email, text} = data;
+    console.log(`Processing job to send email to ${email}`);
 
     await transporter.sendMail({
         from: 'anjanashakthi114@gmail.com',
-        to,
-        subject,
+        to: email,
+        subject: 'Welcome to Our Service',
         text
     });
 }
 
-startWorker().catch(err => { 
+startEmailWorker().catch(err => { 
     console.error("[worker] Error in worker:", err);
     process.exit(1);
 });
